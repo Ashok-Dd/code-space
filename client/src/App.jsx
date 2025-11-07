@@ -307,7 +307,7 @@ function App() {
                 className="w-full px-4 md:px-5 py-3 md:py-4 bg-black/40 border border-gray-700 rounded-xl text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all text-sm md:text-base font-mono"
               />
               <p className="text-xs text-gray-500 mt-2">
-                Access your code at: <span className="text-cyan-400">localhost:5173/{id || 'your-id'}</span>
+                Access your code at: <span className="text-cyan-400">code-space-beta-ten.vercel.app/{id || 'your-id'}</span>
               </p>
             </div>
 
