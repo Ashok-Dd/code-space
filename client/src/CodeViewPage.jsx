@@ -1,8 +1,9 @@
 // Import icons
 import { Copy, Home, Code2, Terminal, Zap, Lock, Edit3, Check, X, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { API_URL } from "./API";
+    
 
-const API_URL = 'https://code-space-3fzo.onrender.com';
 
 // CodeViewPage Component
 function CodeViewPage({ routeId }) {

@@ -10,8 +10,9 @@ import {
   Sparkles,
   RefreshCw
 } from "lucide-react";
+import { API_URL } from "./API";
 
-const API_URL = 'https://code-space-3fzo.onrender.com';
+
 
 // HomePage Component
 function HomePage() {
@@ -151,7 +152,7 @@ function HomePage() {
                   type="text" 
                   value={id} 
                   onChange={(e) => setId(e.target.value)} 
-                  placeholder="Enter unique identifier → my-awesome-code" 
+                  placeholder="Enter unique identifier " 
                   className="flex-1 px-4 md:px-5 py-3 md:py-4 bg-[#0d1117] border border-gray-800 rounded-xl text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-sm md:text-base font-mono" 
                 />
                 <button
