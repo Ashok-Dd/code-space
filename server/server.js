@@ -1,108 +1,68 @@
 import express from "express";
 import http from "http";
 import cors from "cors";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
-import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
+import mongoSanitize from "express-mongo-sanitize";
+import { connectDB } from "./config/database.js";
+import codeRoutes from "./routes/codeRoutes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+import { limiter } from "./middleware/rateLimiter.js";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: "*" }));
 
-const server = http.createServer(app);
+// ✅ Security Middleware
+app.use(helmet()); // Security headers
+app.use(cors({ 
+  origin: "*",
+  credentials: true 
+}));
 
-// ✅ Optional rate limiting
-const limiter = rateLimit({
-  windowMs: 10 * 1000, // 10 sec
-  max: 50, // 50 requests per 10 sec
-});
+// ✅ Performance Middleware
+app.use(compression()); // Compress responses
+app.use(express.json({ limit: '10mb' })); // JSON parser with limit
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ✅ Rate Limiting
 app.use(limiter);
 
-// ✅ Mongoose Schema
-const codeSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  code: {
-    type: String,
-    required: true,
-  },
+// ✅ Health Check
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
-const CodeSpace = mongoose.model("CodeSpace", codeSchema);
+// ✅ Routes
+app.use('/', codeRoutes);
 
-// ✅ POST: Create new code
-app.post("/", async (req, res) => {
-  try {
-    const { id, code } = req.body;
-    if (!id || !code)
-      return res.status(400).json({ success: false, message: "id & code required!" });
+// ✅ Error Handler (must be last)
+app.use(errorHandler);
 
-    const existing = await CodeSpace.findOne({ id });
-    if (existing)
-      return res.status(400).json({ success: false, message: "id already exists!" });
+// ✅ Start Server
+const PORT = process.env.PORT || 4000;
+const server = http.createServer(app);
 
-    const newCode = await CodeSpace.create({ id, code });
-    return res.status(201).json({ success: true, data: newCode });
-  } catch (error) {
-    console.error("Error in posting code:", error);
-    return res.status(500).json({ success: false, message: "Internal server error!" });
-  }
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error("❌ Failed to start server:", err);
+  process.exit(1);
 });
 
-// ✅ PUT: Update existing code
-app.put("/update", async (req, res) => {
-  try {
-    const { id, code } = req.body;
-    if (!id || !code)
-      return res.status(400).json({ success: false, message: "id & code required!" });
-
-    const updated = await CodeSpace.findOneAndUpdate({ id }, { code }, { new: true });
-    if (!updated)
-      return res.status(404).json({ success: false, message: "id not found!" });
-
-    return res.status(200).json({ success: true, message: "Code updated successfully!", data: updated });
-  } catch (error) {
-    console.error("Error updating code:", error);
-    return res.status(500).json({ success: false, message: "Internal server error!" });
-  }
+// ✅ Graceful Shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
 });
 
-// ✅ GET: Get code by ID
-app.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const grabbed = await CodeSpace.findOne({ id });
-
-    if (!grabbed) return res.status(404).json({ success: false, message: "Code not found!" });
-    return res.status(200).send(grabbed.code);
-  } catch (error) {
-    console.log("Error fetching code: ", error);
-    return res.status(500).json({ success: false, message: "Internal server error!" });
-  }
-});
-
-// ✅ GET: Check ID availability
-app.get("/check/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const existing = await CodeSpace.findOne({ id });
-    return res.status(200).json({ exists: !!existing });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: "Internal server error!" });
-  }
-});
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ Connected to MongoDB");
-    server.listen(4000, () => {
-      console.log("🚀 Server running at http://localhost:4000");
-    });
-  })
-  .catch((err) => console.log("❌ Failed to connect DB:", err));
