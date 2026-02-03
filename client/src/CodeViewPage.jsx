@@ -1,5 +1,5 @@
 // Import icons
-import { Copy, Home, Code2, Terminal, Zap, Lock, Edit3, Check, X, RefreshCw } from 'lucide-react';
+import { Copy, Home, Code2, Terminal, Zap, Lock, Edit3, Check, X, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { API_URL } from "./API";
     
@@ -14,6 +14,7 @@ function CodeViewPage({ routeId }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCode, setEditedCode] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     fetchCodeByRoute(routeId);
@@ -84,6 +85,10 @@ function CodeViewPage({ routeId }) {
     setEditedCode('');
   };
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   const getLineNumbers = (text) => {
     const lines = text.split('\n');
     return lines.map((_, index) => index + 1);
@@ -109,30 +114,32 @@ function CodeViewPage({ routeId }) {
       )}
 
       {/* Header */}
-      <div className="relative border-b border-gray-800/50 bg-[#0d1117]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
-                <Terminal className="w-5 h-5 md:w-6 md:h-6 text-white" />
+      {!isFullscreen && (
+        <div className="relative border-b border-gray-800/50 bg-[#0d1117]/80 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+                  <Terminal className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-3xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">CodeSpace</h1>
+                  <p className="text-gray-500 text-xs md:text-sm mt-0.5 font-mono">/{routeId}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl md:text-3xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">CodeSpace</h1>
-                <p className="text-gray-500 text-xs md:text-sm mt-0.5 font-mono">/{routeId}</p>
+              <div className="flex items-center gap-2">
+                <a href="/" className="px-4 py-2 bg-[#161b22] hover:bg-[#1c2128] border border-gray-800 hover:border-purple-500/50 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
+                  <Home className="w-4 h-4" />
+                  <span className="hidden sm:inline">Home</span>
+                </a>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <a href="/" className="px-4 py-2 bg-[#161b22] hover:bg-[#1c2128] border border-gray-800 hover:border-purple-500/50 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </a>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+      <div className={`relative ${isFullscreen ? 'fixed inset-0 z-40 bg-[#0a0e17] flex flex-col p-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10'}`}>
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -156,7 +163,7 @@ function CodeViewPage({ routeId }) {
             </a>
           </div>
         ) : (
-          <div className="bg-[#161b22]/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-800/50 p-6 md:p-8">
+          <div className={`bg-[#161b22]/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-800/50 p-6 md:p-8 ${isFullscreen ? 'flex-1 flex flex-col' : ''}`}>
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -165,6 +172,13 @@ function CodeViewPage({ routeId }) {
                 <h2 className="text-xl md:text-2xl font-black text-gray-100">{routeId}</h2>
               </div>
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={toggleFullscreen} 
+                  className="px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all bg-[#0d1117] border border-gray-800 hover:border-purple-500/50 text-purple-400 hover:text-purple-300 rounded-xl"
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{isFullscreen ? 'Minimize' : 'Fullscreen'}</span>
+                </button>
                 {!isEditing ? (
                   <>
                     <button onClick={startEditing} className="px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all bg-[#0d1117] border border-gray-800 hover:border-indigo-500/50 text-indigo-400 hover:text-indigo-300 rounded-xl">
@@ -187,7 +201,7 @@ function CodeViewPage({ routeId }) {
               </div>
             </div>
             
-            <div className="relative bg-[#0d1117] border border-gray-800 rounded-xl overflow-hidden">
+            <div className={`relative bg-[#0d1117] border border-gray-800 rounded-xl overflow-hidden ${isFullscreen ? 'flex-1 flex flex-col' : ''}`}>
               <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-gray-800">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
@@ -203,20 +217,25 @@ function CodeViewPage({ routeId }) {
                 </div>
               </div>
 
-              <div className="flex overflow-x-auto">
-                <div className="bg-[#0d1117] px-4 py-4 text-gray-600 select-none border-r border-gray-800">
+              <div className={`flex overflow-x-auto ${isFullscreen ? 'flex-1 overflow-hidden' : ''}`}>
+                <div className={`bg-[#0d1117] px-4 py-4 text-gray-600 select-none border-r border-gray-800 ${isFullscreen ? 'overflow-y-auto' : ''}`}>
                   <pre className="font-mono text-xs leading-6 text-right">
                     {getLineNumbers(isEditing ? editedCode : fetchedCode).map(num => (<div key={num}>{num}</div>))}
                   </pre>
                 </div>
                 {isEditing ? (
-                  <textarea value={editedCode} onChange={(e) => setEditedCode(e.target.value)} className="flex-1 px-4 py-4 bg-transparent text-gray-200 placeholder-gray-600 outline-none font-mono text-xs md:text-sm leading-6 resize-none min-h-[400px]" style={{ minHeight: '400px' }} />
+                  <textarea 
+                    value={editedCode} 
+                    onChange={(e) => setEditedCode(e.target.value)} 
+                    className={`flex-1 px-4 py-4 bg-transparent text-gray-200 placeholder-gray-600 outline-none font-mono text-xs md:text-sm leading-6 resize-none ${isFullscreen ? '' : 'min-h-[400px]'}`}
+                    style={!isFullscreen ? { minHeight: '400px' } : {}} 
+                  />
                 ) : (
-                  <pre className="flex-1 px-4 py-4 font-mono text-xs md:text-sm leading-6 text-gray-200 whitespace-pre overflow-x-auto">{fetchedCode}</pre>
+                  <pre className={`flex-1 px-4 py-4 font-mono text-xs md:text-sm leading-6 text-gray-200 whitespace-pre overflow-x-auto ${isFullscreen ? 'overflow-y-auto' : ''}`}>{fetchedCode}</pre>
                 )}
               </div>
             </div>
-            {isEditing && <p className="text-xs text-gray-500 mt-3 flex items-center gap-2"><Zap className="w-3 h-3" /><span>Make your changes and click Save to update the code</span></p>}
+            {isEditing && !isFullscreen && <p className="text-xs text-gray-500 mt-3 flex items-center gap-2"><Zap className="w-3 h-3" /><span>Make your changes and click Save to update the code</span></p>}
           </div>
         )}
       </div>
