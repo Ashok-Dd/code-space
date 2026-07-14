@@ -4,7 +4,7 @@
   "description": "Grab a code snippet from GrabCode straight into your terminal — no curl needed. Supports password-protected snippets with a masked interactive prompt.",
   "type": "module",
   "bin": {
-    "grabcode": "./index.js"
+    "grabcode": "index.js"
   },
   "files": [
     "index.js",
