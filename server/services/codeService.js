@@ -187,8 +187,11 @@ export const getSnippetStats = async (id) => {
 
 // Dashboard data: every snippet owned by a logged-in user, newest edits first,
 // with a truncated code preview instead of full content (keeps the list light).
+// Excludes rooms that were opened but never actually typed into — joining a
+// room creates its DB record immediately (before any content exists), so an
+// empty one just means "visited, nothing written," not a real snippet.
 export const getUserSnippets = async (ownerId) => {
-  const snippets = await CodeSpace.find({ ownerId })
+  const snippets = await CodeSpace.find({ ownerId, code: { $ne: "" } })
     .select("+passwordHash id language code views createdAt updatedAt")
     .sort({ updatedAt: -1 })
     .lean();
