@@ -1,13 +1,33 @@
 {
   "name": "grabcode",
   "version": "1.0.0",
-  "description": "Grab a code snippet from GrabCode straight into your terminal — no curl needed.",
+  "description": "Grab a code snippet from GrabCode straight into your terminal — no curl needed. Supports password-protected snippets with a masked interactive prompt.",
   "type": "module",
   "bin": {
     "grabcode": "./index.js"
   },
+  "files": [
+    "index.js",
+    ".env.example"
+  ],
   "engines": {
     "node": ">=18"
+  },
+  "keywords": [
+    "cli",
+    "snippet",
+    "pastebin",
+    "code-sharing",
+    "grabcode"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ashok-Dd/code-space.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/Ashok-Dd/code-space/tree/main/cli#readme",
+  "bugs": {
+    "url": "https://github.com/Ashok-Dd/code-space/issues"
   },
   "license": "ISC",
   "dependencies": {

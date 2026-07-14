@@ -1,26 +1,17 @@
-# grabcode (CLI)
+# grabcode
 
 Pull a GrabCode snippet straight into your terminal — no `curl` needed. If the
 snippet is password-protected, you're prompted for the password interactively
 (input is masked) instead of the request just failing.
 
-## Setup
+## Install
 
 ```bash
-cd cli
-npm link          # makes the `grabcode` command available globally
+npm install -g grabcode
 ```
 
-Point it at your server by editing `cli/.env` (copy `.env.example` if it
-doesn't exist yet) — defaults to `http://localhost:4000`:
-
-```
-GRABCODE_API_URL=https://your-server.example.com
-```
-
-This is read regardless of which directory you run `grabcode` from. A shell
-environment variable of the same name (`export GRABCODE_API_URL=...`) takes
-priority over `.env` if you need a one-off override.
+That's it — no server setup, no config. It talks to the public GrabCode
+server by default.
 
 ## Usage
 
@@ -38,3 +29,25 @@ Password for "ashok":
 ```
 
 Input is masked as you type. Up to 3 attempts before it gives up.
+
+## Pointing at a different server
+
+Only needed if you're running your own GrabCode instance (e.g. local dev):
+
+```bash
+grabcode ashok --api http://localhost:4000
+# or
+export GRABCODE_API_URL=http://localhost:4000
+```
+
+A `GRABCODE_API_URL` in a `.env` file next to this package works too (see
+`.env.example`) — a real shell environment variable takes priority over it,
+and `--api` takes priority over both.
+
+## Developing on this package
+
+```bash
+cd cli
+npm install
+npm link      # makes `grabcode` point at your local checkout instead
+```

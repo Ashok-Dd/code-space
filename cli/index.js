@@ -22,7 +22,7 @@ Usage:
   grabcode <id> --api <url>     Use a different GrabCode server
 
 Env:
-  GRABCODE_API_URL    Default server URL (falls back to http://localhost:4000)
+  GRABCODE_API_URL    Server to use (defaults to the public GrabCode server)
   GRABCODE_PASSWORD   Default password, used if -p isn't given
 
 Examples:
@@ -147,7 +147,8 @@ async function main() {
     process.exit(args.help ? 0 : 1);
   }
 
-  const apiUrl = (args.api || process.env.GRABCODE_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+  const DEFAULT_API_URL = "https://code-space-3fzo.onrender.com";
+  const apiUrl = (args.api || process.env.GRABCODE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
   let password = args.password || process.env.GRABCODE_PASSWORD || undefined;
 
   let attempt = 0;
