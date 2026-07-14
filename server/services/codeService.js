@@ -139,7 +139,10 @@ export const updateSnippetContent = async (id, { code, language } = {}, password
   if (existing) await assertPasswordAccess(existing, password);
 
   const set = { lastAccessed: new Date() };
-  if (typeof code === "string") set.code = code;
+  // An empty editor is never persisted — protects the last saved content
+  // from being wiped out by an accidental select-all-delete, a stale/empty
+  // client state, etc. Language/lastAccessed still update either way.
+  if (typeof code === "string" && code.length > 0) set.code = code;
   if (typeof language === "string" && language.trim()) set.language = language.trim();
 
   const effectiveOwnerId = existing ? existing.ownerId : ownerId;
