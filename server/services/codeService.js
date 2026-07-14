@@ -167,7 +167,15 @@ export const deleteSnippet = async (id, password, requesterId = null) => {
     throw new AppError("Code not found", 404);
   }
   assertOwnership(existing, requesterId);
-  await assertPasswordAccess(existing, password);
+
+  // A verified account owner doesn't also need the room's separate password —
+  // proven ownership is sufficient. Anonymous rooms (or a non-owner acting on
+  // one) still need it.
+  const isVerifiedOwner =
+    existing.ownerId && requesterId && String(existing.ownerId) === String(requesterId);
+  if (!isVerifiedOwner) {
+    await assertPasswordAccess(existing, password);
+  }
 
   await CodeSpace.deleteOne({ id });
   return existing;

@@ -25,3 +25,6 @@ export const logoutRequest = () => request("/auth/logout", { method: "POST" });
 export const meRequest = () => request("/auth/me", { method: "GET" });
 
 export const mySnippetsRequest = () => request("/mine", { method: "GET" });
+
+export const deleteSnippetRequest = (id) =>
+  request(`/${encodeURIComponent(id)}`, { method: "DELETE" });

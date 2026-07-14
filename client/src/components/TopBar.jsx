@@ -35,7 +35,7 @@ function TopBar({
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         <Logo className="w-8 h-8 sm:w-9 sm:h-9" />
         <div className="flex items-baseline whitespace-nowrap">
-          <span className="font-black text-sm text-gray-100 tracking-tight">GrabCode</span>
+          <span className="font-medium text-sm text-gray-100 tracking-tight">GrabCode</span>
           <span className="hidden sm:inline text-gray-600 mx-2">/</span>
           <span className="hidden sm:inline font-mono text-xs text-purple-400 truncate">{roomId}</span>
         </div>
