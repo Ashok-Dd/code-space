@@ -12,7 +12,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Lock files
-package-lock.json
 yarn.lock
 
 # Build output

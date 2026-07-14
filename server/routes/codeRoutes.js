@@ -1,22 +1,17 @@
 import express from "express";
 import {
-  createCode,
-  updateCode,
   getCode,
-  checkIdAvailability,
+  updateCode,
   deleteCode,
   getCodeStats,
 } from "../controllers/codeController.js";
+import { createLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-// ✅ Routes
-router.post("/", createCode);
-router.put("/update", updateCode);
-router.get("/check/:id", checkIdAvailability);
-router.get("/stats/:id", getCodeStats); // Optional
+router.get("/:id/stats", getCodeStats);
 router.get("/:id", getCode);
-router.delete("/:id", deleteCode); // Optional
+router.put("/:id", createLimiter, updateCode);
+router.delete("/:id", deleteCode);
 
 export default router;
-

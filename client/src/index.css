@@ -1,44 +1,21 @@
 @import "tailwindcss";
 
-/* ------------------ Animations ------------------ */
-@keyframes slide-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+html, body, #root {
+  height: 100%;
 }
 
-@keyframes blob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(20px, -50px) scale(1.1); }
-  50% { transform: translate(-20px, 20px) scale(0.9); }
-  75% { transform: translate(50px, 50px) scale(1.05); }
+html, body {
+  overflow-x: hidden;
 }
 
-@keyframes rain {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 0% 200%; }
+/* Hides the scrollbar on the mobile toolbar overflow safety-net while still
+   allowing touch/wheel scroll. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-
-/* ------------------ Utility Animation Classes ------------------ */
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.matrix-rain {
-  background: linear-gradient(
-    transparent 0%,
-    rgba(6, 182, 212, 0.05) 50%,
-    transparent 100%
-  );
-  background-size: 100% 200%;
-  animation: rain 3s linear infinite;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ------------------ Scrollbar Styles ------------------ */

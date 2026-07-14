@@ -4,35 +4,54 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import compression from "compression";
-import mongoSanitize from "express-mongo-sanitize";
+import mongoose from "mongoose";
+import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/database.js";
 import codeRoutes from "./routes/codeRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { limiter } from "./middleware/rateLimiter.js";
+import { sanitizeBody } from "./middleware/sanitize.js";
+import { registerCodeSocket } from "./sockets/codeSocket.js";
 
 dotenv.config();
 
 const app = express();
 
+// Render/Vercel/most PaaS hosts sit behind exactly one reverse proxy; trusting
+// it lets express-rate-limit key on each visitor's real IP instead of the
+// proxy's IP (which would otherwise bucket every visitor together).
+app.set('trust proxy', 1);
+
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: false,
+};
+
 // ✅ Security Middleware
 app.use(helmet()); // Security headers
-app.use(cors({ 
-  origin: "*",
-  credentials: true 
-}));
+app.use(cors(corsOptions));
 
 // ✅ Performance Middleware
 app.use(compression()); // Compress responses
-app.use(express.json({ limit: '10mb' })); // JSON parser with limit
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb' })); // JSON parser with limit
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ✅ Strip Mongo operators from parsed JSON bodies (must run after the body parsers above)
+app.use(sanitizeBody);
 
 // ✅ Rate Limiting
 app.use(limiter);
 
 // ✅ Health Check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.status(dbConnected ? 200 : 503).json({
+    status: dbConnected ? 'OK' : 'DB_DISCONNECTED',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -47,6 +66,8 @@ app.use(errorHandler);
 // ✅ Start Server
 const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
+const io = new SocketIOServer(server, { cors: corsOptions });
+registerCodeSocket(io);
 
 connectDB().then(() => {
   server.listen(PORT, () => {

@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+const SNIPPET_TTL_SECONDS =
+  (Number(process.env.SNIPPET_TTL_DAYS) || 30) * 24 * 60 * 60;
+
 const codeSchema = new mongoose.Schema(
   {
     id: {
@@ -9,11 +12,24 @@ const codeSchema = new mongoose.Schema(
       trim: true,
       minlength: [3, "ID must be at least 3 characters"],
       maxlength: [50, "ID cannot exceed 50 characters"],
+      match: [/^[A-Za-z0-9_-]+$/, "ID may only contain letters, numbers, hyphens and underscores"],
     },
     code: {
+      // Not required: a freshly opened room starts as an empty snippet.
       type: String,
-      required: [true, "Code is required"],
       maxlength: [100000, "Code cannot exceed 100KB"],
+      default: "",
+    },
+    language: {
+      type: String,
+      trim: true,
+      maxlength: [30, "Language cannot exceed 30 characters"],
+      default: "plaintext",
+    },
+    passwordHash: {
+      type: String,
+      default: null,
+      select: false,
     },
     views: {
       type: Number,
@@ -29,7 +45,8 @@ const codeSchema = new mongoose.Schema(
   }
 );
 
-// KEEP ONLY THIS INDEX
 codeSchema.index({ createdAt: -1 });
+// Snippets auto-delete after a period of inactivity instead of living forever.
+codeSchema.index({ lastAccessed: 1 }, { expireAfterSeconds: SNIPPET_TTL_SECONDS });
 
 export const CodeSpace = mongoose.model("CodeSpace", codeSchema);
