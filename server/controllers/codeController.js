@@ -4,6 +4,7 @@ import {
   updateSnippetContent,
   deleteSnippet,
   getSnippetStats,
+  getUserSnippets,
 } from "../services/codeService.js";
 
 const passwordFromRequest = (req) => req.get("X-Snippet-Password") || undefined;
@@ -27,7 +28,8 @@ export const updateCode = asyncHandler(async (req, res) => {
   const snippet = await updateSnippetContent(
     req.params.id,
     { code, language },
-    passwordFromRequest(req)
+    passwordFromRequest(req),
+    req.userId
   );
 
   res.status(200).json({
@@ -42,7 +44,7 @@ export const updateCode = asyncHandler(async (req, res) => {
 });
 
 export const deleteCode = asyncHandler(async (req, res) => {
-  await deleteSnippet(req.params.id, passwordFromRequest(req));
+  await deleteSnippet(req.params.id, passwordFromRequest(req), req.userId);
 
   res.status(200).json({
     success: true,
@@ -57,4 +59,9 @@ export const getCodeStats = asyncHandler(async (req, res) => {
     success: true,
     data: snippet,
   });
+});
+
+export const getMySnippets = asyncHandler(async (req, res) => {
+  const snippets = await getUserSnippets(req.userId);
+  res.status(200).json({ success: true, data: snippets });
 });

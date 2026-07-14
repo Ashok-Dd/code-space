@@ -4,14 +4,18 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/database.js";
 import codeRoutes from "./routes/codeRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { limiter } from "./middleware/rateLimiter.js";
 import { sanitizeBody } from "./middleware/sanitize.js";
+import { optionalAuth } from "./middleware/auth.js";
 import { registerCodeSocket } from "./sockets/codeSocket.js";
+import { CodeSpace } from "./models/codeModel.js";
 
 dotenv.config();
 
@@ -27,14 +31,18 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// credentials: true is required so the auth cookie travels with both REST
+// calls and the Socket.IO handshake — the origin allowlist above is what
+// keeps that safe (no wildcard origin is used alongside it).
 const corsOptions = {
   origin: allowedOrigins,
-  credentials: false,
+  credentials: true,
 };
 
 // ✅ Security Middleware
 app.use(helmet()); // Security headers
 app.use(cors(corsOptions));
+app.use(cookieParser());
 
 // ✅ Performance Middleware
 app.use(compression()); // Compress responses
@@ -58,7 +66,8 @@ app.get('/health', (req, res) => {
 });
 
 // ✅ Routes
-app.use('/', codeRoutes);
+app.use('/auth', authRoutes);
+app.use('/', optionalAuth, codeRoutes);
 
 // ✅ Error Handler (must be last)
 app.use(errorHandler);
@@ -69,7 +78,11 @@ const server = http.createServer(app);
 const io = new SocketIOServer(server, { cors: corsOptions });
 registerCodeSocket(io);
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Schema changes to indexes (e.g. the TTL field move from lastAccessed to
+  // expiresAt) aren't dropped automatically by Mongoose — sync them so a
+  // stale index can't silently keep expiring owned snippets.
+  await CodeSpace.syncIndexes();
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
@@ -86,4 +99,3 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
-

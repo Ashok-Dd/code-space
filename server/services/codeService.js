@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
-import { CodeSpace } from "../models/codeModel.js";
+import { CodeSpace, SNIPPET_TTL_MS } from "../models/codeModel.js";
 import { AppError } from "../utils/appError.js";
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{3,50}$/;
 const SALT_ROUNDS = 10;
+const PREVIEW_LENGTH = 300;
 
 export const isValidId = (id) => typeof id === "string" && ID_PATTERN.test(id);
 
@@ -25,6 +26,16 @@ const assertPasswordAccess = async (snippet, password) => {
   if (!ok) throw new AppError("Incorrect password", 403);
 };
 
+// Anonymous (unowned) rooms stay open to anyone who's already interacting
+// with them (matches the original, pre-accounts behavior). Owned rooms
+// restrict protection/deletion to the owner.
+const assertOwnership = (snippet, requesterId) => {
+  if (!snippet.ownerId) return;
+  if (!requesterId || String(snippet.ownerId) !== String(requesterId)) {
+    throw new AppError("Only the owner can do that", 403);
+  }
+};
+
 const stripHash = (snippet) => {
   if (!snippet) return snippet;
   const { passwordHash, ...rest } = snippet;
@@ -35,14 +46,21 @@ const stripHash = (snippet) => {
 // opens the editor for an id, e.g. via the "join" socket event). Returns the
 // raw doc (including passwordHash) so the caller can decide whether to gate
 // access — this does NOT itself check the password.
-export const getOrCreateSnippet = async (id) => {
+export const getOrCreateSnippet = async (id, ownerId = null) => {
   assertValidId(id);
 
+  let snippet;
   try {
-    return await CodeSpace.findOneAndUpdate(
+    snippet = await CodeSpace.findOneAndUpdate(
       { id },
       {
-        $setOnInsert: { id, code: "", language: "plaintext" },
+        $setOnInsert: {
+          id,
+          code: "",
+          language: "plaintext",
+          ownerId,
+          expiresAt: ownerId ? null : new Date(Date.now() + SNIPPET_TTL_MS),
+        },
         $inc: { views: 1 },
         $set: { lastAccessed: new Date() },
       },
@@ -55,11 +73,22 @@ export const getOrCreateSnippet = async (id) => {
     // upsert (e.g. React StrictMode's double-effect in dev); the loser just
     // reads back the document the winner created instead of failing to join.
     if (err.code === 11000) {
-      const existing = await CodeSpace.findOne({ id }).select("+passwordHash").lean();
-      if (existing) return existing;
+      snippet = await CodeSpace.findOne({ id }).select("+passwordHash").lean();
+      if (!snippet) throw err;
+    } else {
+      throw err;
     }
-    throw err;
   }
+
+  // Sliding expiry for anonymous rooms — refreshed on every visit. Owned
+  // rooms keep expiresAt as null so Mongo's TTL monitor never touches them.
+  if (!snippet.ownerId) {
+    const expiresAt = new Date(Date.now() + SNIPPET_TTL_MS);
+    await CodeSpace.updateOne({ id }, { $set: { expiresAt } });
+    snippet.expiresAt = expiresAt;
+  }
+
+  return snippet;
 };
 
 export const isPasswordCorrect = (snippet, password) => {
@@ -69,8 +98,12 @@ export const isPasswordCorrect = (snippet, password) => {
 };
 
 // Sets, changes, or (with an empty/null password) removes a snippet's password.
-export const setSnippetPassword = async (id, password) => {
+export const setSnippetPassword = async (id, password, requesterId = null) => {
   assertValidId(id);
+
+  const existing = await CodeSpace.findOne({ id }).select("ownerId").lean();
+  if (!existing) throw new AppError("Code not found", 404);
+  assertOwnership(existing, requesterId);
 
   const passwordHash =
     typeof password === "string" && password.length > 0
@@ -82,10 +115,6 @@ export const setSnippetPassword = async (id, password) => {
     { $set: { passwordHash, lastAccessed: new Date() } },
     { new: true }
   ).lean();
-
-  if (!snippet) {
-    throw new AppError("Code not found", 404);
-  }
 
   return { isProtected: !!passwordHash };
 };
@@ -103,7 +132,7 @@ export const getSnippet = async (id, password) => {
   return stripHash(snippet);
 };
 
-export const updateSnippetContent = async (id, { code, language } = {}, password) => {
+export const updateSnippetContent = async (id, { code, language } = {}, password, ownerId = null) => {
   assertValidId(id);
 
   const existing = await CodeSpace.findOne({ id }).select("+passwordHash").lean();
@@ -113,22 +142,28 @@ export const updateSnippetContent = async (id, { code, language } = {}, password
   if (typeof code === "string") set.code = code;
   if (typeof language === "string" && language.trim()) set.language = language.trim();
 
+  const effectiveOwnerId = existing ? existing.ownerId : ownerId;
+  if (!effectiveOwnerId) {
+    set.expiresAt = new Date(Date.now() + SNIPPET_TTL_MS);
+  }
+
   const snippet = await CodeSpace.findOneAndUpdate(
     { id },
-    { $set: set, $setOnInsert: { id } },
+    { $set: set, $setOnInsert: { id, ownerId } },
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   ).lean();
 
   return snippet;
 };
 
-export const deleteSnippet = async (id, password) => {
+export const deleteSnippet = async (id, password, requesterId = null) => {
   assertValidId(id);
 
-  const existing = await CodeSpace.findOne({ id }).select("+passwordHash").lean();
+  const existing = await CodeSpace.findOne({ id }).select("+passwordHash ownerId").lean();
   if (!existing) {
     throw new AppError("Code not found", 404);
   }
+  assertOwnership(existing, requesterId);
   await assertPasswordAccess(existing, password);
 
   await CodeSpace.deleteOne({ id });
@@ -145,4 +180,23 @@ export const getSnippetStats = async (id) => {
     throw new AppError("Code not found", 404);
   }
   return snippet;
+};
+
+// Dashboard data: every snippet owned by a logged-in user, newest edits first,
+// with a truncated code preview instead of full content (keeps the list light).
+export const getUserSnippets = async (ownerId) => {
+  const snippets = await CodeSpace.find({ ownerId })
+    .select("+passwordHash id language code views createdAt updatedAt")
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  return snippets.map((snippet) => ({
+    id: snippet.id,
+    language: snippet.language,
+    preview: snippet.code.slice(0, PREVIEW_LENGTH),
+    isProtected: !!snippet.passwordHash,
+    views: snippet.views,
+    createdAt: snippet.createdAt,
+    updatedAt: snippet.updatedAt,
+  }));
 };

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-const SNIPPET_TTL_SECONDS =
-  (Number(process.env.SNIPPET_TTL_DAYS) || 30) * 24 * 60 * 60;
+export const SNIPPET_TTL_MS =
+  (Number(process.env.SNIPPET_TTL_DAYS) || 30) * 24 * 60 * 60 * 1000;
 
 const codeSchema = new mongoose.Schema(
   {
@@ -31,6 +31,13 @@ const codeSchema = new mongoose.Schema(
       default: null,
       select: false,
     },
+    // Null for an anonymous room. Set once, at creation, if the creator was
+    // logged in — ownership is never transferred after the fact.
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     views: {
       type: Number,
       default: 0,
@@ -39,6 +46,13 @@ const codeSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Sliding expiry for anonymous rooms only (refreshed on every join/edit).
+    // Left null for owned rooms, which Mongo's TTL monitor simply skips —
+    // owned snippets never expire.
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -46,7 +60,7 @@ const codeSchema = new mongoose.Schema(
 );
 
 codeSchema.index({ createdAt: -1 });
-// Snippets auto-delete after a period of inactivity instead of living forever.
-codeSchema.index({ lastAccessed: 1 }, { expireAfterSeconds: SNIPPET_TTL_SECONDS });
+codeSchema.index({ ownerId: 1, updatedAt: -1 });
+codeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const CodeSpace = mongoose.model("CodeSpace", codeSchema);

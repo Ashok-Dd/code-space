@@ -1,3 +1,4 @@
+import { parseCookie } from "cookie";
 import {
   getOrCreateSnippet,
   updateSnippetContent,
@@ -5,6 +6,8 @@ import {
   isPasswordCorrect,
   isValidId,
 } from "../services/codeService.js";
+import { verifyToken } from "../services/authService.js";
+import { AUTH_COOKIE_NAME } from "../middleware/auth.js";
 
 const UPDATE_THROTTLE_MS = 300;
 const MAX_CODE_LENGTH = 100000;
@@ -20,9 +23,20 @@ const broadcastViewers = (io, roomId) => {
   io.to(roomId).emit("viewers", roomViewerCount(io, roomId));
 };
 
+// The auth cookie travels with the Socket.IO handshake (client connects with
+// withCredentials: true) the same way it does with a normal fetch — no
+// separate login step needed for the socket connection itself.
+const getUserIdFromSocket = (socket) => {
+  const cookieHeader = socket.handshake.headers.cookie;
+  if (!cookieHeader) return null;
+  const token = parseCookie(cookieHeader)[AUTH_COOKIE_NAME];
+  return token ? verifyToken(token) : null;
+};
+
 export const registerCodeSocket = (io) => {
   io.on("connection", (socket) => {
     let currentRoomId = null;
+    const userId = getUserIdFromSocket(socket);
 
     socket.on("join", async (payload, ack) => {
       const rawId = typeof payload === "string" ? payload : payload?.id;
@@ -43,7 +57,7 @@ export const registerCodeSocket = (io) => {
       }
 
       try {
-        const snippet = await getOrCreateSnippet(id);
+        const snippet = await getOrCreateSnippet(id, userId);
         const roomIsProtected = !!snippet.passwordHash;
         const authorized = await isPasswordCorrect(snippet, password);
 
@@ -66,6 +80,7 @@ export const registerCodeSocket = (io) => {
           language: snippet.language,
           viewers: roomViewerCount(io, id),
           isProtected: roomIsProtected,
+          isOwner: !!snippet.ownerId && String(snippet.ownerId) === String(userId),
         });
         broadcastViewers(io, id);
         if (typeof ack === "function") ack({ ok: true });
@@ -85,7 +100,7 @@ export const registerCodeSocket = (io) => {
       lastUpdateAtBySocket.set(socket.id, now);
 
       try {
-        const snippet = await updateSnippetContent(id, { code, language });
+        const snippet = await updateSnippetContent(id, { code, language }, undefined, userId);
         socket.to(id).emit("code-update", {
           code: snippet.code,
           language: snippet.language,
@@ -96,7 +111,8 @@ export const registerCodeSocket = (io) => {
     });
 
     // Only a socket that has already successfully joined (i.e. proven it
-    // knows the current password, if any) may set/change/remove one.
+    // knows the current password, if any) may set/change/remove one — and if
+    // the room is owned, only the owner.
     socket.on("set-password", async ({ id, password } = {}, ack) => {
       if (!currentRoomId || id !== currentRoomId) {
         if (typeof ack === "function") {
@@ -106,7 +122,7 @@ export const registerCodeSocket = (io) => {
       }
 
       try {
-        const { isProtected } = await setSnippetPassword(id, password);
+        const { isProtected } = await setSnippetPassword(id, password, userId);
         io.to(id).emit("protection-changed", { isProtected });
         if (typeof ack === "function") ack({ ok: true, isProtected });
       } catch (err) {

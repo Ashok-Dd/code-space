@@ -20,6 +20,7 @@ export function useCodeSocket(roomId) {
   const [notFound, setNotFound] = useState(false);
   const [locked, setLocked] = useState(false);
   const [isProtected, setIsProtected] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
   const socketRef = useRef(null);
@@ -41,7 +42,7 @@ export function useCodeSocket(roomId) {
     setStatus("connecting");
     dirtyRef.current = false;
 
-    const socket = io(API_URL, { transports: ["websocket", "polling"] });
+    const socket = io(API_URL, { transports: ["websocket", "polling"], withCredentials: true });
     socketRef.current = socket;
 
     socket.on("connect", () => {
@@ -62,6 +63,7 @@ export function useCodeSocket(roomId) {
       setLanguage(nextLanguage);
       setViewers(payload.viewers || 1);
       setIsProtected(!!payload.isProtected);
+      setIsOwner(!!payload.isOwner);
       setLocked(false);
       setPasswordError("");
       setReady(true);
@@ -185,6 +187,7 @@ export function useCodeSocket(roomId) {
     notFound,
     locked,
     isProtected,
+    isOwner,
     passwordError,
     updateCode,
     updateLanguage,

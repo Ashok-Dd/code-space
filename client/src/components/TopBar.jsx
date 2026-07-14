@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Copy, Check, Maximize2, Minimize2, Plus } from "lucide-react";
 import LanguageSelect from "./LanguageSelect";
 import ConnectionStatus from "./ConnectionStatus";
 import LockMenu from "./LockMenu";
+import UserMenu from "./UserMenu";
 import Logo from "./Logo";
+import { useAuth } from "../context/useAuth";
 
 function TopBar({
   roomId,
@@ -19,6 +22,7 @@ function TopBar({
   onSetPassword,
 }) {
   const [copied, setCopied] = useState(false);
+  const { user, loading } = useAuth();
 
   const handleCopy = () => {
     onCopyLink();
@@ -72,6 +76,18 @@ function TopBar({
         >
           {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
+        {!loading && (
+          user ? (
+            <UserMenu />
+          ) : (
+            <Link
+              to="/login"
+              className="shrink-0 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-[#161b22] hover:bg-[#1c2128] border border-gray-800 hover:border-purple-500/50 rounded-lg text-xs font-semibold text-gray-300 transition-all whitespace-nowrap"
+            >
+              Sign in
+            </Link>
+          )
+        )}
       </div>
     </header>
   );

@@ -2,6 +2,9 @@ import { Routes, Route, useParams } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import NewRoomRedirect from "./pages/NewRoomRedirect";
 import EditorPage from "./pages/EditorPage";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
 
 function EditorRoute() {
   const { id } = useParams();
@@ -25,6 +28,9 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<NewRoomRedirect />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/:id" element={<EditorRoute />} />
       </Routes>
     </>
